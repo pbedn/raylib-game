@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "raymath.h"
 
 // #include "TracyC.h"
 
@@ -114,8 +115,17 @@ void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight) {
 
 void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight) {
     for (int i = 0; i < *enemyCount; i++) {
-        enemies[i].position.x += enemies[i].direction.x * 100.0f * deltaTime;
-        enemies[i].position.y += enemies[i].direction.y * 100.0f * deltaTime;
+        // Calculate direction vector from enemy to player
+        Vector2 direction = (Vector2){player->position.x - enemies[i].position.x, player->position.y - enemies[i].position.y};
+
+        // Normalize the direction vector
+        float length = Vector2Length(direction);
+        if (length > 0) { // Avoid division by zero
+            direction = (Vector2){direction.x / length, direction.y / length}; // Normalize
+        }
+
+        enemies[i].position.x += direction.x * 100.0f * deltaTime;
+        enemies[i].position.y += direction.y * 100.0f * deltaTime;
 
         // Check for collision with player
         if (CheckCollision(player, &enemies[i])) {

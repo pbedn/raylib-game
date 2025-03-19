@@ -1,0 +1,9 @@
+build/
+build-release/
+tracy/
+.cache/
+*.exe
+*.sublime-project
+*.sublime-workspace
+assets/
+compile_commands.json
