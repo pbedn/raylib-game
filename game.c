@@ -119,10 +119,7 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
         Vector2 direction = (Vector2){player->position.x - enemies[i].position.x, player->position.y - enemies[i].position.y};
 
         // Normalize the direction vector
-        float length = Vector2Length(direction);
-        if (length > 0) { // Avoid division by zero
-            direction = (Vector2){direction.x / length, direction.y / length}; // Normalize
-        }
+        direction = Vector2Normalize(direction);
 
         enemies[i].position.x += direction.x * 100.0f * deltaTime;
         enemies[i].position.y += direction.y * 100.0f * deltaTime;
