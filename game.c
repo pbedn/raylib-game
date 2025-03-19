@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <float.h>
 #include <stddef.h>
 
@@ -16,6 +17,7 @@
 typedef struct Player {
     Vector2 position;
     float radius;
+    int health;
 } Player;
 
 typedef struct Enemy {
@@ -90,6 +92,11 @@ int main(void) {
     int enemyCount;
     InitEnemies(enemies, &enemyCount);
 
+    // Wave system variables
+    float waveTimer = 0.0f;
+    const float WAVE_DURATION = 30.0f;
+    int currentWave = 1;
+
     SetTargetFPS(60); // Set the game to run at 60 frames-per-second
 
     //
@@ -128,6 +135,36 @@ int main(void) {
             enemyCount++;
         }
 
+        // Wave system: update timer and end wave if needed
+        waveTimer += deltaTime;
+        if (waveTimer >= WAVE_DURATION)
+        {
+            // End of wave: reset enemies, reward player and proceed to the next wave
+            enemyCount = 0;
+            player.health++; // Give player an extra health as a reward
+            powerUp.active = false;  // Optionally, reset powerUp state or spawn a new one
+
+            currentWave++;
+            waveTimer = 0.0f;
+        }
+
+        // Check for Player death and restart game state if health <= 0
+        if (player.health <= 0)
+        {
+            // Restart state: reinitialize all game elements
+            InitPlayer(&player);
+            InitBulletManager(&bulletManager);
+            enemyCount = 0;
+            InitEnemies(enemies, &enemyCount);
+            powerUpsCollected = 0;
+            enemiesShot = 0;
+            powerUp.active = false;
+            enemySpawnVar = INITIAL_ENEMY_SPAWN_VAR;
+            // Optionally, reset wave system
+            currentWave = 1;
+            waveTimer = 0.0f;
+        }
+
         //
         /* Drawing: Render the player, enemies, bullets, and power-ups to the screen. */
         //
@@ -138,6 +175,24 @@ int main(void) {
         DrawEnemies(enemies, enemyCount);
         DrawBullets(&bulletManager);
         DrawText("Use WASD to move", 10, 10, 20, DARKGRAY);
+
+        // Draw player health at a fixed position
+        char healthText[32];
+        sprintf(healthText, "Health: %d", player.health);
+        DrawText(healthText, 10, 40, 20, WHITE);
+
+        // Draw wave information centered at the top
+        char waveText[32];
+        sprintf(waveText, "Wave: %d", currentWave);
+        int textWidth = MeasureText(waveText, 20);
+        DrawText(waveText, (screenWidth - textWidth) / 2, 10, 20, WHITE);
+
+        // Optionally, display the remaining time for the current wave (in seconds)
+        char timerText[32];
+        sprintf(timerText, "Time: %d", (int)(WAVE_DURATION - waveTimer));
+        int timerTextWidth = MeasureText(timerText, 20);
+        DrawText(timerText, (screenWidth - timerTextWidth) / 2, 40, 20, WHITE);
+
         if (powerUp.active) {
             DrawCircleV(powerUp.position, powerUp.radius, GREEN); // Draw power-up
         }
@@ -156,6 +211,7 @@ int main(void) {
 void InitPlayer(Player *player) {
     player->position = (Vector2){400, 300}; // Center of the screen
     player->radius = 20.0f;
+    player->health = 10;
 }
 
 void InitBulletManager(BulletManager *bulletManager) {
@@ -225,6 +281,9 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
 
         // Check for collision with player
         if (CheckCollision(player, &enemies[i])) {
+            // Decrease player's health
+            player->health--;
+            
             // Remove enemy by shifting the rest of the array
             for (int j = i; j < *enemyCount - 1; j++) {
                 enemies[j] = enemies[j + 1];
