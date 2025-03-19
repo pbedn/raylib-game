@@ -24,14 +24,14 @@ void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight);
 void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight);
 void DrawEnemies(Enemy enemies[], int enemyCount);
 bool CheckCollision(Player *player, Enemy *enemy);
-void UpdatePlayer(Player *player, float deltaTime);
+void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHeight);
 
 int main(void) {
     // TracyCAlloc(x, y);
 
     // Initialization
-    const int screenWidth = 800;
-    const int screenHeight = 600;
+    const int screenWidth = 1280;
+    const int screenHeight = 720;
 
     InitWindow(screenWidth, screenHeight, "Vampire Survivors Clone");
 
@@ -50,7 +50,7 @@ int main(void) {
 
         // Update
         float deltaTime = GetFrameTime();
-        UpdatePlayer(&player, deltaTime);
+        UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
         UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight);
 
         // Drawing Section
@@ -81,11 +81,15 @@ void InitEnemies(Enemy enemies[], int *enemyCount) {
     *enemyCount = 0; // Initialize enemy count
 }
 
-void UpdatePlayer(Player *player, float deltaTime) {
+void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHeight) {
     if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) player->position.y -= PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) player->position.y += PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) player->position.x -= PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) player->position.x += PLAYER_SPEED * deltaTime;
+
+    // Clamp player position to stay within screen boundaries
+    player->position.x = Clamp(player->position.x, player->radius, screenWidth - player->radius);
+    player->position.y = Clamp(player->position.y, player->radius, screenHeight - player->radius);
 }
 
 void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight) {
@@ -121,8 +125,13 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
         // Normalize the direction vector
         direction = Vector2Normalize(direction);
 
-        enemies[i].position.x += direction.x * 100.0f * deltaTime;
-        enemies[i].position.y += direction.y * 100.0f * deltaTime;
+        // Move the enemy towards the player
+        enemies[i].position.x += direction.x * 100.0f * deltaTime; // Adjust speed as needed
+        enemies[i].position.y += direction.y * 100.0f * deltaTime; // Adjust speed as needed
+
+        // Clamp enemy position to stay within screen boundaries
+        enemies[i].position.x = Clamp(enemies[i].position.x, enemies[i].radius, screenWidth - enemies[i].radius);
+        enemies[i].position.y = Clamp(enemies[i].position.y, enemies[i].radius, screenHeight - enemies[i].radius);
 
         // Check for collision with player
         if (CheckCollision(player, &enemies[i])) {
