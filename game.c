@@ -1,18 +1,19 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <float.h>
 #include <stddef.h>
 
 #include "raylib.h"
 #include "raymath.h"
 
-// #include "TracyC.h"
-
-#define TRACY_ENABLE
 #define PLAYER_SPEED 200.0f
 #define MAX_ENEMIES 1000
 #define INITIAL_ENEMY_SPAWN_VAR 2 // Initial spawn chance for enemies
 #define MAX_BULLETS 100
 #define SHOOTING_RANGE 500.0f // Define the shooting range
+
+
 
 typedef struct Player {
     Vector2 position;
@@ -47,7 +48,46 @@ typedef struct PowerUp {
     bool active;
 } PowerUp;
 
-// PowerUp powerUp; // Global power-up variable
+// Define the palette enum
+enum palette {
+    COLOR_DARK_GRAY,
+    COLOR_GRAY,
+    COLOR_LIGHT_GRAY,
+    COLOR_LIGHTER_GRAY,
+    COLOR_WHITE,
+    COLOR_DARK_RED,
+    COLOR_RED,
+    COLOR_ORANGE_RED,
+    COLOR_PINK,
+    COLOR_DARK_GREEN,
+    COLOR_GREEN,
+    COLOR_BLUE,
+    COLOR_LIGHT_BLUE,
+    COLOR_ORANGE,
+    COLOR_YELLOW,
+    COLOR_LIGHT_YELLOW,
+};
+
+// Create an array of raylib Color structures
+Color colors[16] = {
+    (Color){34, 35, 35, 255},      // COLOR_DARK_GRAY
+    (Color){67, 67, 79, 255},      // COLOR_GRAY
+    (Color){96, 96, 112, 255},     // COLOR_LIGHT_GRAY
+    (Color){126, 126, 143, 255},   // COLOR_LIGHTER_GRAY
+    (Color){194, 194, 209, 255},   // COLOR_WHITE
+    (Color){140, 63, 93, 255},     // COLOR_DARK_RED
+    (Color){186, 97, 86, 255},     // COLOR_RED
+    (Color){235, 86, 75, 255},     // COLOR_ORANGE_RED
+    (Color){255, 181, 181, 255},   // COLOR_PINK
+    (Color){60, 163, 112, 255},    // COLOR_DARK_GREEN
+    (Color){93, 222, 135, 255},    // COLOR_GREEN
+    (Color){100, 118, 232, 255},   // COLOR_BLUE
+    (Color){134, 167, 237, 255},   // COLOR_LIGHT_BLUE
+    (Color){242, 166, 94, 255},    // COLOR_ORANGE
+    (Color){255, 228, 120, 255},   // COLOR_YELLOW
+    (Color){255, 255, 235, 255}    // COLOR_LIGHT_YELLOW
+};
+
 
 void InitPlayer(Player *player);
 void InitBulletManager(BulletManager *bulletManager);
@@ -124,9 +164,9 @@ int main(void) {
         CheckPowerUpCollection(&player, &powerUp, &powerUpsCollected, &enemySpawnVar); // Check for power-up 
 
         // Spawn power-up if conditions are met (e.g., every 10 enemies shot)
-        if (!powerUp.active && enemiesShot >= 10 * (powerUpsCollected + 1)) {
+        if (!powerUp.active && (enemiesShot != 0) && (enemiesShot % 10 == 0) * (powerUpsCollected + 1)) {
             SpawnPowerUp(&powerUp, screenWidth, screenHeight, &player);
-            enemiesShot = 0; // Reset enemies shot count after spawning power-up
+            // enemiesShot = 0; // Reset enemies shot count after spawning power-up
         }
 
         // Spawn new enemies based on the updated enemy spawn variable
@@ -171,31 +211,38 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
         
-        DrawCircleV(player.position, player.radius, BLUE);
+        DrawCircleV(player.position, player.radius, colors[COLOR_BLUE]);
         DrawEnemies(enemies, enemyCount);
         DrawBullets(&bulletManager);
-        DrawText("Use WASD to move", 10, 10, 20, DARKGRAY);
+        DrawText("Use WASD to move", 10, 10, 20, colors[COLOR_LIGHTER_GRAY]);
 
         // Draw player health at a fixed position
         char healthText[32];
         sprintf(healthText, "Health: %d", player.health);
-        DrawText(healthText, 10, 40, 20, WHITE);
+        DrawText(healthText, 10, 40, 20, colors[COLOR_WHITE]);
 
         // Draw wave information centered at the top
         char waveText[32];
         sprintf(waveText, "Wave: %d", currentWave);
         int textWidth = MeasureText(waveText, 20);
-        DrawText(waveText, (screenWidth - textWidth) / 2, 10, 20, WHITE);
+        DrawText(waveText, (screenWidth - textWidth) / 2, 10, 20, colors[COLOR_WHITE]);
 
         // Optionally, display the remaining time for the current wave (in seconds)
         char timerText[32];
         sprintf(timerText, "Time: %d", (int)(WAVE_DURATION - waveTimer));
         int timerTextWidth = MeasureText(timerText, 20);
-        DrawText(timerText, (screenWidth - timerTextWidth) / 2, 40, 20, WHITE);
+        DrawText(timerText, (screenWidth - timerTextWidth) / 2, 40, 20, colors[COLOR_WHITE]);
+
+        // Draw wave information centered at the top
+        char enemiesText[32];
+        sprintf(waveText, "Enemies Killed: %d", enemiesShot);
+        int enemiesTextWidth = MeasureText(waveText, 20);
+        DrawText(waveText, (screenWidth - enemiesTextWidth) - 100, 10, 20, colors[COLOR_WHITE]);
 
         if (powerUp.active) {
-            DrawCircleV(powerUp.position, powerUp.radius, GREEN); // Draw power-up
+            DrawCircleV(powerUp.position, powerUp.radius, colors[COLOR_GREEN]); // Draw power-up
         }
+
         EndDrawing();
     }
 
@@ -302,7 +349,7 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
 
 void DrawEnemies(Enemy enemies[], int enemyCount) {
     for (int i = 0; i < enemyCount; i++) {
-        DrawCircleV(enemies[i].position, enemies[i].radius, RED);
+        DrawCircleV(enemies[i].position, enemies[i].radius, colors[COLOR_ORANGE_RED]);
     }
 }
 
@@ -370,7 +417,7 @@ void DrawBullets(BulletManager *bulletManager) {
     for (int i = 0; i < bulletManager->bulletCount; i++) {
         Bullet *bullet = &bulletManager->bullets[i];
         if (bullet->active) {
-            DrawCircleV(bullet->position, bullet->radius, YELLOW); // Draw bullet
+            DrawCircleV(bullet->position, bullet->radius, colors[COLOR_LIGHT_YELLOW]); // Draw bullet
         }
     }
 }
