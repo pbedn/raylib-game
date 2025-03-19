@@ -9,6 +9,7 @@
 #define TRACY_ENABLE
 #define PLAYER_SPEED 200.0f
 #define MAX_ENEMIES 1000
+#define ENEMY_SPAWN_VAR 5
 #define MAX_BULLETS 100
 #define SHOOTING_RANGE 500.0f // Define the shooting range
 
@@ -50,7 +51,7 @@ void UpdateBullets(BulletManager *bulletManager, float deltaTime, int screenHeig
 void DrawBullets(BulletManager *bulletManager);
 void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount);
 Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player);
-
+void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount);
 
 int main(void) {
     // TracyCAlloc(x, y);
@@ -59,19 +60,15 @@ int main(void) {
     const int screenWidth = 1280;
     const int screenHeight = 720;
 
-    InitWindow(screenWidth, screenHeight, "Vampire Survivors Clone");
+    InitWindow(screenWidth, screenHeight, "Reverse Bullet Hell Survivor Roguelike");
 
     Player player;
     InitPlayer(&player);
 
-    Bullet bullets[MAX_BULLETS]; // Array to hold bullets
-    BulletManager bulletManager; // Declare bullet manager
-    InitBulletManager(&bulletManager); // Initialize bullet manager
+    BulletManager bulletManager;
+    InitBulletManager(&bulletManager);
 
-    
-
-    Enemy enemies[MAX_ENEMIES]; // Static Allocation
-    // Enemy *enemies = malloc(sizeof(Enemy) * MAX_ENEMIES); // Dynamic Allocation
+    Enemy enemies[MAX_ENEMIES];
     int enemyCount;
     InitEnemies(enemies, &enemyCount);
 
@@ -85,6 +82,7 @@ int main(void) {
         UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
         UpdateBullets(&bulletManager, deltaTime, screenHeight);
         FireBullet(&player, &bulletManager, enemies, enemyCount);
+        CheckBulletEnemyCollisions(&bulletManager, enemies, &enemyCount); // Check for collisions
         UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight);
 
         // Drawing Section
@@ -115,7 +113,7 @@ void InitPlayer(Player *player) {
 void InitBulletManager(BulletManager *bulletManager) {
     bulletManager->bulletCount = 0; // Initialize bullet count
     bulletManager->lastShotTime = 0.0f; // Reset shot timer
-    bulletManager->bulletCooldown = 0.2f; // Set bullet cooldown
+    bulletManager->bulletCooldown = 0.8f; // Set bullet cooldown
 }
 
 void InitEnemies(Enemy enemies[], int *enemyCount) {
@@ -189,7 +187,7 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
     }
 
     // Spawn new enemies periodically
-    if (GetRandomValue(0, 100) < 2 && *enemyCount < MAX_ENEMIES) {
+    if (GetRandomValue(0, 100) < ENEMY_SPAWN_VAR && *enemyCount < MAX_ENEMIES) {
         SpawnEnemy(&enemies[*enemyCount], screenWidth, screenHeight);
         (*enemyCount)++;
     }
@@ -251,7 +249,7 @@ void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], i
                 Vector2 direction = Vector2Subtract(closestEnemy->position, player->position);
                 newBullet->direction = Vector2Normalize(direction); // Normalize the direction
 
-                newBullet->speed = 400.0f; // Set bullet speed
+                newBullet->speed = PLAYER_SPEED * 2; // Set bullet speed
                 newBullet->radius = 5.0f; // Set bullet radius
                 newBullet->active = true; // Mark bullet as active
                 bulletManager->lastShotTime = 0.0f; // Reset shot timer
@@ -282,4 +280,26 @@ Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player) {
     }
 
     return closestEnemy; // Returns NULL if no enemy is within range
+}
+
+void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount) {
+    for (int i = 0; i < bulletManager->bulletCount; i++) {
+        Bullet *bullet = &bulletManager->bullets[i];
+        if (bullet->active) {
+            for (int j = 0; j < *enemyCount; j++) {
+                Enemy *enemy = &enemies[j];
+                if (CheckCollisionCircles(bullet->position, bullet->radius, enemy->position, enemy->radius)) {
+                    // Collision detected
+                    bullet->active = false; // Deactivate the bullet
+
+                    // Remove the enemy by shifting the rest of the array
+                    for (int k = j; k < *enemyCount - 1; k++) {
+                        enemies[k] = enemies[k + 1];
+                    }
+                    (*enemyCount)--; // Decrease enemy count
+                    break; // Exit the inner loop since the bullet is now inactive
+                }
+            }
+        }
+    }
 }
