@@ -1,3 +1,6 @@
+#include <float.h>
+#include <stddef.h>
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -6,6 +9,8 @@
 #define TRACY_ENABLE
 #define PLAYER_SPEED 200.0f
 #define MAX_ENEMIES 1000
+#define MAX_BULLETS 100
+#define SHOOTING_RANGE 500.0f // Define the shooting range
 
 typedef struct Player {
     Vector2 position;
@@ -18,13 +23,34 @@ typedef struct Enemy {
     Vector2 direction;
 } Enemy;
 
+typedef struct Bullet {
+    Vector2 position;
+    Vector2 direction;
+    float speed;
+    float radius;
+    bool active; // To check if the bullet is active
+} Bullet;
+
+typedef struct BulletManager {
+    Bullet bullets[MAX_BULLETS]; // Array to hold bullets
+    int bulletCount; // Current number of active bullets
+    float lastShotTime; // Timer for shooting
+    float bulletCooldown; // Time between shots
+} BulletManager;
+
 void InitPlayer(Player *player);
+void InitBulletManager(BulletManager *bulletManager);
 void InitEnemies(Enemy enemies[], int *enemyCount);
 void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight);
 void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight);
 void DrawEnemies(Enemy enemies[], int enemyCount);
 bool CheckCollision(Player *player, Enemy *enemy);
 void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHeight);
+void UpdateBullets(BulletManager *bulletManager, float deltaTime, int screenHeight);
+void DrawBullets(BulletManager *bulletManager);
+void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount);
+Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player);
+
 
 int main(void) {
     // TracyCAlloc(x, y);
@@ -37,6 +63,12 @@ int main(void) {
 
     Player player;
     InitPlayer(&player);
+
+    Bullet bullets[MAX_BULLETS]; // Array to hold bullets
+    BulletManager bulletManager; // Declare bullet manager
+    InitBulletManager(&bulletManager); // Initialize bullet manager
+
+    
 
     Enemy enemies[MAX_ENEMIES]; // Static Allocation
     // Enemy *enemies = malloc(sizeof(Enemy) * MAX_ENEMIES); // Dynamic Allocation
@@ -51,6 +83,8 @@ int main(void) {
         // Update
         float deltaTime = GetFrameTime();
         UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
+        UpdateBullets(&bulletManager, deltaTime, screenHeight);
+        FireBullet(&player, &bulletManager, enemies, enemyCount);
         UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight);
 
         // Drawing Section
@@ -59,6 +93,7 @@ int main(void) {
         
         DrawCircleV(player.position, player.radius, BLUE);
         DrawEnemies(enemies, enemyCount);
+        DrawBullets(&bulletManager);
         DrawText("Use WASD to move", 10, 10, 20, DARKGRAY);
         
         EndDrawing();
@@ -77,6 +112,12 @@ void InitPlayer(Player *player) {
     player->radius = 20.0f;
 }
 
+void InitBulletManager(BulletManager *bulletManager) {
+    bulletManager->bulletCount = 0; // Initialize bullet count
+    bulletManager->lastShotTime = 0.0f; // Reset shot timer
+    bulletManager->bulletCooldown = 0.2f; // Set bullet cooldown
+}
+
 void InitEnemies(Enemy enemies[], int *enemyCount) {
     *enemyCount = 0; // Initialize enemy count
 }
@@ -90,6 +131,9 @@ void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHe
     // Clamp player position to stay within screen boundaries
     player->position.x = Clamp(player->position.x, player->radius, screenWidth - player->radius);
     player->position.y = Clamp(player->position.y, player->radius, screenHeight - player->radius);
+
+    // // Auto-fire bullets
+    // FireBullet(&player, &bulletManager);
 }
 
 void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight) {
@@ -161,3 +205,81 @@ bool CheckCollision(Player *player, Enemy *enemy) {
     return CheckCollisionCircles(player->position, player->radius, enemy->position, enemy->radius);
 }
 
+void UpdateBullets(BulletManager *bulletManager, float deltaTime, int screenHeight) {
+    for (int i = 0; i < bulletManager->bulletCount; i++) {
+        Bullet *bullet = &bulletManager->bullets[i];
+        if (bullet->active) {
+            // Move the bullet
+            bullet->position.x += bullet->direction.x * bullet->speed * deltaTime;
+            bullet->position.y += bullet->direction.y * bullet->speed * deltaTime;
+
+            // Check if the bullet is off-screen
+            if (bullet->position.y < 0) {
+                bullet->active = false; // Deactivate bullet
+            }
+        }
+    }
+
+    // Remove inactive bullets
+    for (int i = 0; i < bulletManager->bulletCount; i++) {
+        if (!bulletManager->bullets[i].active) {
+            // Shift the rest of the array
+            for (int j = i; j < bulletManager->bulletCount - 1; j++) {
+                bulletManager->bullets[j] = bulletManager->bullets[j + 1];
+            }
+            bulletManager->bulletCount--; // Decrease bullet count
+            i--; // Adjust index after removal
+        }
+    }
+}
+
+void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount) {
+    bulletManager->lastShotTime += GetFrameTime();
+    if (bulletManager->lastShotTime >= bulletManager->bulletCooldown) {
+        // Find the closest enemy
+        Enemy *closestEnemy = FindClosestEnemy(enemies, enemyCount, player);
+
+        if (closestEnemy != NULL) {
+            // Check for available bullet slot
+            if (bulletManager->bulletCount < MAX_BULLETS) {
+                Bullet *newBullet = &bulletManager->bullets[bulletManager->bulletCount++];
+                newBullet->position = player->position; // Start at player's position
+
+                // newBullet->direction = (Vector2){0, -1}; // Fire upwards
+
+                // Calculate direction towards the closest enemy
+                Vector2 direction = Vector2Subtract(closestEnemy->position, player->position);
+                newBullet->direction = Vector2Normalize(direction); // Normalize the direction
+
+                newBullet->speed = 400.0f; // Set bullet speed
+                newBullet->radius = 5.0f; // Set bullet radius
+                newBullet->active = true; // Mark bullet as active
+                bulletManager->lastShotTime = 0.0f; // Reset shot timer
+            }
+        }
+    }
+}
+
+void DrawBullets(BulletManager *bulletManager) {
+    for (int i = 0; i < bulletManager->bulletCount; i++) {
+        Bullet *bullet = &bulletManager->bullets[i];
+        if (bullet->active) {
+            DrawCircleV(bullet->position, bullet->radius, YELLOW); // Draw bullet
+        }
+    }
+}
+
+Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player) {
+    Enemy *closestEnemy = NULL;
+    float closestDistance = SHOOTING_RANGE;
+
+    for (int i = 0; i < enemyCount; i++) {
+        float distance = Vector2Distance(player->position, enemies[i].position);
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestEnemy = &enemies[i];
+        }
+    }
+
+    return closestEnemy; // Returns NULL if no enemy is within range
+}
