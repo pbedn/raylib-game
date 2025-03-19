@@ -9,7 +9,7 @@
 #define TRACY_ENABLE
 #define PLAYER_SPEED 200.0f
 #define MAX_ENEMIES 1000
-#define ENEMY_SPAWN_VAR 5
+#define INITIAL_ENEMY_SPAWN_VAR 2 // Initial spawn chance for enemies
 #define MAX_BULLETS 100
 #define SHOOTING_RANGE 500.0f // Define the shooting range
 
@@ -39,24 +39,34 @@ typedef struct BulletManager {
     float bulletCooldown; // Time between shots
 } BulletManager;
 
+typedef struct PowerUp {
+    Vector2 position;
+    float radius;
+    bool active;
+} PowerUp;
+
+// PowerUp powerUp; // Global power-up variable
+
 void InitPlayer(Player *player);
 void InitBulletManager(BulletManager *bulletManager);
 void InitEnemies(Enemy enemies[], int *enemyCount);
 void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight);
-void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight);
+void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight, int enemySpawnVar);
 void DrawEnemies(Enemy enemies[], int enemyCount);
 bool CheckCollision(Player *player, Enemy *enemy);
 void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHeight);
 void UpdateBullets(BulletManager *bulletManager, float deltaTime, int screenHeight);
 void DrawBullets(BulletManager *bulletManager);
-void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount);
+void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount, float screenWidth, float screenHeight, int powerUpsCollected, int *enemySpawnVar, float fireRateIncrease);
 Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player);
-void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount);
+void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount, int *enemiesShot);
+void SpawnPowerUp(PowerUp *powerUp, float screenWidth, float screenHeight, Player *player);
+void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected, int *enemySpawnVar);
 
 int main(void) {
-    // TracyCAlloc(x, y);
-
-    // Initialization
+    //
+    /* Initialization: Set up the window and initialize game entities. */
+    //
     const int screenWidth = 1280;
     const int screenHeight = 720;
 
@@ -68,24 +78,59 @@ int main(void) {
     BulletManager bulletManager;
     InitBulletManager(&bulletManager);
 
+    PowerUp powerUp; // Move power-up variable to main
+    powerUp.active = false; // Initialize power-up as inactive
+
+    int enemySpawnVar = INITIAL_ENEMY_SPAWN_VAR; // Variable to control enemy spawn rate
+    int powerUpsCollected = 0; // Number of power-ups collected
+    int enemiesShot = 0; // Track number of enemies shot
+    float fireRateIncrease = 0.05f; // 5% increase in fire rate
+
     Enemy enemies[MAX_ENEMIES];
     int enemyCount;
     InitEnemies(enemies, &enemyCount);
 
     SetTargetFPS(60); // Set the game to run at 60 frames-per-second
 
-    // Main game loop
+    //
+    /* Game Loop: Continuously update and draw the game until the window is closed. */
+    //
     while (!WindowShouldClose()) {
-
         // Update
         float deltaTime = GetFrameTime();
+        //
+        /* Input Handling: Update player movement based on input. */
+        //
         UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
-        UpdateBullets(&bulletManager, deltaTime, screenHeight);
-        FireBullet(&player, &bulletManager, enemies, enemyCount);
-        CheckBulletEnemyCollisions(&bulletManager, enemies, &enemyCount); // Check for collisions
-        UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight);
 
-        // Drawing Section
+        //
+        /* Update Game State: Update the state of the player, enemies, bullets, and power-ups. */
+        //
+        UpdateBullets(&bulletManager, deltaTime, screenHeight);
+        FireBullet(&player, &bulletManager, enemies, enemyCount, screenWidth, screenHeight, powerUpsCollected, &enemySpawnVar, fireRateIncrease);
+        UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight, enemySpawnVar);
+        
+        //
+        /* Collision Detection: Check for collisions between bullets and enemies, and between the player and power-ups. */
+        //
+        CheckBulletEnemyCollisions(&bulletManager, enemies, &enemyCount, &enemiesShot); // Check for collisions
+        CheckPowerUpCollection(&player, &powerUp, &powerUpsCollected, &enemySpawnVar); // Check for power-up 
+
+        // Spawn power-up if conditions are met (e.g., every 10 enemies shot)
+        if (!powerUp.active && enemiesShot >= 10 * (powerUpsCollected + 1)) {
+            SpawnPowerUp(&powerUp, screenWidth, screenHeight, &player);
+            enemiesShot = 0; // Reset enemies shot count after spawning power-up
+        }
+
+        // Spawn new enemies based on the updated enemy spawn variable
+        if (GetRandomValue(0, 100) < enemySpawnVar && enemyCount < MAX_ENEMIES) {
+            SpawnEnemy(&enemies[enemyCount], screenWidth, screenHeight);
+            enemyCount++;
+        }
+
+        //
+        /* Drawing: Render the player, enemies, bullets, and power-ups to the screen. */
+        //
         BeginDrawing();
         ClearBackground(BLACK);
         
@@ -93,12 +138,15 @@ int main(void) {
         DrawEnemies(enemies, enemyCount);
         DrawBullets(&bulletManager);
         DrawText("Use WASD to move", 10, 10, 20, DARKGRAY);
-        
+        if (powerUp.active) {
+            DrawCircleV(powerUp.position, powerUp.radius, GREEN); // Draw power-up
+        }
         EndDrawing();
     }
 
-    // De-Initialization
-    // free(enemies);
+    //
+    /* De-Initialization: Clean up resources and close the window. */
+    //
     CloseWindow(); // Close window and OpenGL context
 
     return 0;
@@ -159,7 +207,7 @@ void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight) {
     }
 }
 
-void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight) {
+void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight, int enemySpawnVar) {
     for (int i = 0; i < *enemyCount; i++) {
         // Calculate direction vector from enemy to player
         Vector2 direction = (Vector2){player->position.x - enemies[i].position.x, player->position.y - enemies[i].position.y};
@@ -187,7 +235,7 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
     }
 
     // Spawn new enemies periodically
-    if (GetRandomValue(0, 100) < ENEMY_SPAWN_VAR && *enemyCount < MAX_ENEMIES) {
+    if (GetRandomValue(0, 100) < enemySpawnVar && *enemyCount < MAX_ENEMIES) {
         SpawnEnemy(&enemies[*enemyCount], screenWidth, screenHeight);
         (*enemyCount)++;
     }
@@ -231,9 +279,12 @@ void UpdateBullets(BulletManager *bulletManager, float deltaTime, int screenHeig
     }
 }
 
-void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount) {
+void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount, float screenWidth, float screenHeight, int powerUpsCollected, int *enemySpawnVar, float fireRateIncrease)
+{
     bulletManager->lastShotTime += GetFrameTime();
-    if (bulletManager->lastShotTime >= bulletManager->bulletCooldown) {
+    float effectiveBulletCooldown = bulletManager->bulletCooldown * (1.0f - (powerUpsCollected * fireRateIncrease));
+
+    if (bulletManager->lastShotTime >= effectiveBulletCooldown) {
         // Find the closest enemy
         Enemy *closestEnemy = FindClosestEnemy(enemies, enemyCount, player);
 
@@ -243,13 +294,11 @@ void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], i
                 Bullet *newBullet = &bulletManager->bullets[bulletManager->bulletCount++];
                 newBullet->position = player->position; // Start at player's position
 
-                // newBullet->direction = (Vector2){0, -1}; // Fire upwards
-
                 // Calculate direction towards the closest enemy
                 Vector2 direction = Vector2Subtract(closestEnemy->position, player->position);
                 newBullet->direction = Vector2Normalize(direction); // Normalize the direction
 
-                newBullet->speed = PLAYER_SPEED * 2; // Set bullet speed
+                newBullet->speed = PLAYER_SPEED * 4; // Set bullet speed
                 newBullet->radius = 5.0f; // Set bullet radius
                 newBullet->active = true; // Mark bullet as active
                 bulletManager->lastShotTime = 0.0f; // Reset shot timer
@@ -282,7 +331,7 @@ Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player) {
     return closestEnemy; // Returns NULL if no enemy is within range
 }
 
-void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount) {
+void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount, int *enemiesShot) {
     for (int i = 0; i < bulletManager->bulletCount; i++) {
         Bullet *bullet = &bulletManager->bullets[i];
         if (bullet->active) {
@@ -291,6 +340,9 @@ void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], i
                 if (CheckCollisionCircles(bullet->position, bullet->radius, enemy->position, enemy->radius)) {
                     // Collision detected
                     bullet->active = false; // Deactivate the bullet
+
+                    // Increment enemiesShot
+                    (*enemiesShot)++;
 
                     // Remove the enemy by shifting the rest of the array
                     for (int k = j; k < *enemyCount - 1; k++) {
@@ -301,5 +353,24 @@ void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], i
                 }
             }
         }
+    }
+}
+
+void SpawnPowerUp(PowerUp *powerUp, float screenWidth, float screenHeight, Player *player) {
+    const float MIN_DISTANCE_FROM_PLAYER = 100.0f; // Minimum distance from player
+
+    do {
+        powerUp->position = (Vector2){GetRandomValue(50, screenWidth - 50), GetRandomValue(50, screenHeight - 50)};
+    } while (Vector2Distance(powerUp->position, player->position) < MIN_DISTANCE_FROM_PLAYER);
+
+    powerUp->radius = 15.0f; // Set power-up radius
+    powerUp->active = true; // Activate power-up
+}
+
+void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected, int *enemySpawnVar) {
+    if (powerUp->active && CheckCollisionCircles(player->position, player->radius, powerUp->position, powerUp->radius)) {
+        (*powerUpsCollected)++; // Increase power-ups collected
+        powerUp->active = false; // Deactivate power-up
+        *enemySpawnVar += 1; // Increase enemy spawn variable
     }
 }
