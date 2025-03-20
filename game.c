@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <stdlib.h>
+// #include <stdlib.h>
 #include <stdbool.h>
 #include <float.h>
 #include <stddef.h>
@@ -88,6 +88,12 @@ Color colors[16] = {
     (Color){255, 255, 235, 255}    // COLOR_LIGHT_YELLOW
 };
 
+typedef enum {
+    LOGO,
+    MAIN_MENU,
+    GAME,
+    GAME_OVER
+} GameState;
 
 void InitPlayer(Player *player);
 void InitBulletManager(BulletManager *bulletManager);
@@ -104,6 +110,10 @@ Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player);
 void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount, int *enemiesShot);
 void SpawnPowerUp(PowerUp *powerUp, float screenWidth, float screenHeight, Player *player);
 void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected, int *enemySpawnVar);
+void DrawLogo();
+void DrawMainMenu();
+void DrawGame();
+void DrawGameOver();
 
 int main(void) {
     //
@@ -137,111 +147,165 @@ int main(void) {
     const float WAVE_DURATION = 30.0f;
     int currentWave = 1;
 
-    SetTargetFPS(60); // Set the game to run at 60 frames-per-second
+    GameState currentState = LOGO;
+    float logoTimer = 0.0f;
+
+    // SetTargetFPS(60); // Set the game to run at 60 frames-per-second
 
     //
     /* Game Loop: Continuously update and draw the game until the window is closed. */
     //
     while (!WindowShouldClose()) {
-        // Update
         float deltaTime = GetFrameTime();
-        //
-        /* Input Handling: Update player movement based on input. */
-        //
-        UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
 
-        //
-        /* Update Game State: Update the state of the player, enemies, bullets, and power-ups. */
-        //
-        UpdateBullets(&bulletManager, deltaTime, screenHeight);
-        FireBullet(&player, &bulletManager, enemies, enemyCount, screenWidth, screenHeight, powerUpsCollected, &enemySpawnVar, fireRateIncrease);
-        UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight, enemySpawnVar);
+        switch (currentState) {
+            case LOGO:
+                logoTimer += GetFrameTime();
+                if (logoTimer >= 3.0f) { // Show logo for 3 seconds
+                    currentState = MAIN_MENU;
+                }
+                break;
+            case MAIN_MENU:
+                if (IsKeyPressed(KEY_ONE)) {
+                    currentState = GAME;
+                }
+                if (IsKeyPressed(KEY_TWO)) {
+                    // Handle settings (not implemented)
+                }
+                if (IsKeyPressed(KEY_THREE)) {
+                    CloseWindow(); // Exit the game
+                }
+                break;
+            case GAME:
+                // Game logic goes here
+                // For demonstration, we'll simulate a game over after a key press
+                if (IsKeyPressed(KEY_SPACE)) {
+                    currentState = GAME_OVER;
+                }
+                break;
+            case GAME_OVER:
+                if (IsKeyPressed(KEY_R)) {
+                    currentState = GAME; // Restart the game
+                }
+                if (IsKeyPressed(KEY_M)) {
+                    currentState = MAIN_MENU; // Go to main menu
+                }
+                break;
+        }
+
+        // Draw
+        switch (currentState) {
+            case LOGO:
+                DrawLogo();
+                break;
+            case MAIN_MENU:
+                DrawMainMenu();
+                break;
+            case GAME:
+                DrawGame();
+                break;
+            case GAME_OVER:
+                DrawGameOver();
+                break;
+            }
+
+        // //
+        // /* Input Handling: Update player movement based on input. */
+        // //
+        // UpdatePlayer(&player, deltaTime, screenWidth, screenHeight);
+
+        // //
+        // /* Update Game State: Update the state of the player, enemies, bullets, and power-ups. */
+        // //
+        // UpdateBullets(&bulletManager, deltaTime, screenHeight);
+        // FireBullet(&player, &bulletManager, enemies, enemyCount, screenWidth, screenHeight, powerUpsCollected, &enemySpawnVar, fireRateIncrease);
+        // UpdateEnemies(enemies, &enemyCount, &player, deltaTime, screenWidth, screenHeight, enemySpawnVar);
         
-        //
-        /* Collision Detection: Check for collisions between bullets and enemies, and between the player and power-ups. */
-        //
-        CheckBulletEnemyCollisions(&bulletManager, enemies, &enemyCount, &enemiesShot); // Check for collisions
-        CheckPowerUpCollection(&player, &powerUp, &powerUpsCollected, &enemySpawnVar); // Check for power-up 
+        // //
+        // /* Collision Detection: Check for collisions between bullets and enemies, and between the player and power-ups. */
+        // //
+        // CheckBulletEnemyCollisions(&bulletManager, enemies, &enemyCount, &enemiesShot); // Check for collisions
+        // CheckPowerUpCollection(&player, &powerUp, &powerUpsCollected, &enemySpawnVar); // Check for power-up 
 
-        // Spawn power-up if conditions are met (e.g., every 10 enemies shot)
-        if (!powerUp.active && (enemiesShot != 0) && (enemiesShot % 10 == 0) * (powerUpsCollected + 1)) {
-            SpawnPowerUp(&powerUp, screenWidth, screenHeight, &player);
-            // enemiesShot = 0; // Reset enemies shot count after spawning power-up
-        }
+        // // Spawn power-up if conditions are met (e.g., every 10 enemies shot)
+        // if (!powerUp.active && (enemiesShot != 0) && (enemiesShot % 10 == 0) * (powerUpsCollected + 1)) {
+        //     SpawnPowerUp(&powerUp, screenWidth, screenHeight, &player);
+        //     // enemiesShot = 0; // Reset enemies shot count after spawning power-up
+        // }
 
-        // Spawn new enemies based on the updated enemy spawn variable
-        if (GetRandomValue(0, 100) < enemySpawnVar && enemyCount < MAX_ENEMIES) {
-            SpawnEnemy(&enemies[enemyCount], screenWidth, screenHeight);
-            enemyCount++;
-        }
+        // // Spawn new enemies based on the updated enemy spawn variable
+        // if (GetRandomValue(0, 100) < enemySpawnVar && enemyCount < MAX_ENEMIES) {
+        //     SpawnEnemy(&enemies[enemyCount], screenWidth, screenHeight);
+        //     enemyCount++;
+        // }
 
-        // Wave system: update timer and end wave if needed
-        waveTimer += deltaTime;
-        if (waveTimer >= WAVE_DURATION)
-        {
-            // End of wave: reset enemies, reward player and proceed to the next wave
-            enemyCount = 0;
-            player.health++; // Give player an extra health as a reward
-            powerUp.active = false;  // Optionally, reset powerUp state or spawn a new one
+        // // Wave system: update timer and end wave if needed
+        // waveTimer += deltaTime;
+        // if (waveTimer >= WAVE_DURATION)
+        // {
+        //     // End of wave: reset enemies, reward player and proceed to the next wave
+        //     enemyCount = 0;
+        //     player.health++; // Give player an extra health as a reward
+        //     powerUp.active = false;  // Optionally, reset powerUp state or spawn a new one
 
-            currentWave++;
-            waveTimer = 0.0f;
-        }
+        //     currentWave++;
+        //     waveTimer = 0.0f;
+        // }
 
-        // Check for Player death and restart game state if health <= 0
-        if (player.health <= 0)
-        {
-            // Restart state: reinitialize all game elements
-            InitPlayer(&player);
-            InitBulletManager(&bulletManager);
-            enemyCount = 0;
-            InitEnemies(enemies, &enemyCount);
-            powerUpsCollected = 0;
-            enemiesShot = 0;
-            powerUp.active = false;
-            enemySpawnVar = INITIAL_ENEMY_SPAWN_VAR;
-            // Optionally, reset wave system
-            currentWave = 1;
-            waveTimer = 0.0f;
-        }
+        // // Check for Player death and restart game state if health <= 0
+        // if (player.health <= 0)
+        // {
+        //     // Restart state: reinitialize all game elements
+        //     InitPlayer(&player);
+        //     InitBulletManager(&bulletManager);
+        //     enemyCount = 0;
+        //     InitEnemies(enemies, &enemyCount);
+        //     powerUpsCollected = 0;
+        //     enemiesShot = 0;
+        //     powerUp.active = false;
+        //     enemySpawnVar = INITIAL_ENEMY_SPAWN_VAR;
+        //     // Optionally, reset wave system
+        //     currentWave = 1;
+        //     waveTimer = 0.0f;
+        // }
 
-        //
-        /* Drawing: Render the player, enemies, bullets, and power-ups to the screen. */
-        //
-        BeginDrawing();
-        ClearBackground(BLACK);
+        // //
+        // /* Drawing: Render the player, enemies, bullets, and power-ups to the screen. */
+        // //
+        // BeginDrawing();
+        // ClearBackground(BLACK);
         
-        DrawCircleV(player.position, player.radius, colors[COLOR_BLUE]);
-        DrawEnemies(enemies, enemyCount);
-        DrawBullets(&bulletManager);
-        DrawText("Use WASD to move", 10, 10, 20, colors[COLOR_LIGHTER_GRAY]);
+        // DrawCircleV(player.position, player.radius, colors[COLOR_BLUE]);
+        // DrawEnemies(enemies, enemyCount);
+        // DrawBullets(&bulletManager);
+        // DrawText("Use WASD to move", 10, 10, 20, colors[COLOR_LIGHTER_GRAY]);
 
-        // Draw player health at a fixed position
-        char healthText[32];
-        sprintf(healthText, "Health: %d", player.health);
-        DrawText(healthText, 10, 40, 20, colors[COLOR_WHITE]);
+        // // Draw player health at a fixed position
+        // char healthText[32];
+        // sprintf(healthText, "Health: %d", player.health);
+        // DrawText(healthText, 10, 40, 20, colors[COLOR_WHITE]);
 
-        // Draw wave information centered at the top
-        char waveText[32];
-        sprintf(waveText, "Wave: %d", currentWave);
-        int textWidth = MeasureText(waveText, 20);
-        DrawText(waveText, (screenWidth - textWidth) / 2, 10, 20, colors[COLOR_WHITE]);
+        // // Draw wave information centered at the top
+        // char waveText[32];
+        // sprintf(waveText, "Wave: %d", currentWave);
+        // int textWidth = MeasureText(waveText, 20);
+        // DrawText(waveText, (screenWidth - textWidth) / 2, 10, 20, colors[COLOR_WHITE]);
 
-        // Optionally, display the remaining time for the current wave (in seconds)
-        char timerText[32];
-        sprintf(timerText, "Time: %d", (int)(WAVE_DURATION - waveTimer));
-        int timerTextWidth = MeasureText(timerText, 20);
-        DrawText(timerText, (screenWidth - timerTextWidth) / 2, 40, 20, colors[COLOR_WHITE]);
+        // // Optionally, display the remaining time for the current wave (in seconds)
+        // char timerText[32];
+        // sprintf(timerText, "Time: %d", (int)(WAVE_DURATION - waveTimer));
+        // int timerTextWidth = MeasureText(timerText, 20);
+        // DrawText(timerText, (screenWidth - timerTextWidth) / 2, 40, 20, colors[COLOR_WHITE]);
 
-        // Draw wave information centered at the top
-        char enemiesText[32];
-        sprintf(waveText, "Enemies Killed: %d", enemiesShot);
-        int enemiesTextWidth = MeasureText(waveText, 20);
-        DrawText(waveText, (screenWidth - enemiesTextWidth) - 100, 10, 20, colors[COLOR_WHITE]);
+        // // Draw wave information centered at the top
+        // char enemiesText[32];
+        // sprintf(waveText, "Enemies Killed: %d", enemiesShot);
+        // int enemiesTextWidth = MeasureText(waveText, 20);
+        // DrawText(waveText, (screenWidth - enemiesTextWidth) - 100, 10, 20, colors[COLOR_WHITE]);
 
-        if (powerUp.active) {
-            DrawCircleV(powerUp.position, powerUp.radius, colors[COLOR_GREEN]); // Draw power-up
-        }
+        // if (powerUp.active) {
+        //     DrawCircleV(powerUp.position, powerUp.radius, colors[COLOR_GREEN]); // Draw power-up
+        // }
 
         EndDrawing();
     }
@@ -479,4 +543,30 @@ void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsColle
         powerUp->active = false; // Deactivate power-up
         *enemySpawnVar += 1; // Increase enemy spawn variable
     }
+}
+
+
+void DrawLogo() {
+    ClearBackground(colors[COLOR_DARK_GRAY]);
+    DrawText("My Game Logo", GetScreenWidth() / 2 - MeasureText("My Game Logo", 20) / 2, GetScreenHeight() / 2 - 10, 20, colors[COLOR_WHITE]);
+    DrawText("Created by Your Name", GetScreenWidth() / 2 - MeasureText("Created by Your Name", 20) / 2, GetScreenHeight() / 2 + 20, 20, colors[COLOR_WHITE]);
+}
+
+void DrawMainMenu() {
+    ClearBackground(colors[COLOR_DARK_GRAY]);
+    DrawText("Main Menu", GetScreenWidth() / 2 - MeasureText("Main Menu", 40) / 2, GetScreenHeight() / 2 - 40, 40, colors[COLOR_WHITE]);
+    DrawText("1. Play Game", GetScreenWidth() / 2 - MeasureText("1. Play Game", 20) / 2, GetScreenHeight() / 2, 20, colors[COLOR_WHITE]);
+    DrawText("2. Settings", GetScreenWidth() / 2 - MeasureText("2. Settings", 20) / 2, GetScreenHeight() / 2 + 30, 20, colors[COLOR_WHITE]);
+    DrawText("3. Exit", GetScreenWidth() / 2 - MeasureText("3. Exit", 20) / 2, GetScreenHeight() / 2 + 60, 20, colors[COLOR_WHITE]);
+}
+
+void DrawGame() {
+    ClearBackground(colors[COLOR_DARK_GRAY]);
+    DrawText("Playing the Game!", GetScreenWidth() / 2 - MeasureText("Playing the Game!", 20) / 2, GetScreenHeight() / 2, 20, colors[COLOR_WHITE]);
+}
+
+void DrawGameOver() {
+    ClearBackground(colors[COLOR_DARK_GRAY]);
+    DrawText("Game Over", GetScreenWidth() / 2 - MeasureText("Game Over", 40) / 2, GetScreenHeight() / 2 - 40, 40, colors[COLOR_WHITE]);
+    DrawText("Press R to Restart or M to go to Main Menu", GetScreenWidth() / 2 - MeasureText("Press R to Restart or M to go to Main Menu", 20) / 2, GetScreenHeight() / 2, 20, DARKGRAY);
 }
