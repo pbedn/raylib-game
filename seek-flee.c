@@ -1,9 +1,13 @@
+/* Enemy SEEK or FLEE the Player */
+
 #include <stdbool.h>
 #include <float.h>
 #include <stddef.h>
 
 #include "raylib.h"
 #include "raymath.h"
+
+#define MAX_SPEED 100.0f
 
 typedef struct KinematicCharacter {
     Vector2 position;   // Position of the character
@@ -36,7 +40,7 @@ int main(void) {
     const int screenWidth = 1280;
     const int screenHeight = 720;
 
-    InitWindow(screenWidth, screenHeight, "Reverse Bullet Hell Survivor Roguelike");
+    InitWindow(screenWidth, screenHeight, "Kinematic Seek and Flee");
 
     KinematicCharacter player = { .position = {400, 300}, .orientation = 0, .velocity = {0, 0}, .rotation = 0, .radius = 20.0f };
     KinematicCharacter enemy = { .position = {0, 0}, .orientation = 0, .velocity = {0, 0}, .rotation = 0, .radius = 20.0f };
@@ -69,10 +73,13 @@ int main(void) {
             enemyState = FLEEING;
         } else if (IsKeyDown(KEY_S)) {
             enemyState = SEEKING;
+        } else if (IsKeyDown(KEY_SPACE)) {
+            enemyState = IDLE;
         }
 
         switch (enemyState) {
             case IDLE:
+                steering.linear = (Vector2){0, 0};
                 break;
             case SEEKING:
                 steering = Seek(&enemy, player.position);
@@ -104,6 +111,7 @@ int main(void) {
             DrawText("Fleeing!", 10, 10, 20, RAYWHITE);
         if (enemyState == SEEKING)
             DrawText("Seeking!", 10, 10, 20, RAYWHITE);
+        DrawText("Press S to make enemy Seek, F to Flee, Space to zero orientation", 10, 50, 20, RAYWHITE);
 
         EndDrawing();
     }
@@ -120,7 +128,7 @@ SteeringOutput Seek(KinematicCharacter* character, Vector2 target) {
     
     if (distance > 0) {
         desiredVelocity = Vector2Normalize(desiredVelocity);
-        desiredVelocity = Vector2Scale(desiredVelocity, 100.0f); // Use a fixed speed for seeking
+        desiredVelocity = Vector2Scale(desiredVelocity, MAX_SPEED); // Use a fixed speed for seeking
     }
 
     output.linear = Vector2Subtract(desiredVelocity, character->velocity);
@@ -137,7 +145,7 @@ SteeringOutput Flee(KinematicCharacter* character, Vector2 target) {
     
     if (distance > 0) {
         desiredVelocity = Vector2Normalize(desiredVelocity);
-        desiredVelocity = Vector2Scale(desiredVelocity, 100.0f); // Use a fixed speed for fleeing
+        desiredVelocity = Vector2Scale(desiredVelocity, MAX_SPEED); // Use a fixed speed for fleeing
     }
 
     output.linear = Vector2Subtract(desiredVelocity, character->velocity);
@@ -178,7 +186,6 @@ void DrawCharacterWithOrientation(KinematicCharacter* character, Color color) {
 
 void UpdateOrientation(KinematicCharacter* character) {
     if (Vector2Length(character->velocity) > 0) {
-        // if (player.velocity.x != 0 || player.velocity.y != 0) {
         character->orientation = atan2(character->velocity.y, character->velocity.x);
     }
 }
