@@ -28,6 +28,7 @@ SteeringOutput Seek(KinematicCharacter* character, Vector2 target);
 SteeringOutput Flee(KinematicCharacter* character, Vector2 target);
 void UpdateKinematicCharacter(KinematicCharacter* character, SteeringOutput* steering, float deltaTime);
 void DrawCharacterWithOrientation(KinematicCharacter* character, Color color);
+void UpdateOrientation(KinematicCharacter* character);
 
 int main(void) {
     SetTraceLogLevel( LOG_ALL );
@@ -58,9 +59,7 @@ int main(void) {
         if (IsKeyDown(KEY_RIGHT)) player.velocity.x += 200 * GetFrameTime();
 
         // Update orientation based on velocity
-        if (player.velocity.x != 0 || player.velocity.y != 0) {
-            player.orientation = atan2(player.velocity.y, player.velocity.x);
-        }
+        UpdateOrientation(&player);
 
         // Update player position
         UpdateKinematicCharacter(&player, &(SteeringOutput){.linear = {0, 0}, .angular = 0}, GetFrameTime());
@@ -82,10 +81,7 @@ int main(void) {
                 steering = Flee(&enemy, player.position);
                 break;
         }
-        // Update enemy behavior
-        if (enemy.velocity.x != 0 || enemy.velocity.y != 0) {
-            enemy.orientation = atan2(enemy.velocity.y, enemy.velocity.x);
-        }
+        UpdateOrientation(&enemy);
         UpdateKinematicCharacter(&enemy, &steering, GetFrameTime());
 
 
@@ -178,4 +174,11 @@ void DrawCharacterWithOrientation(KinematicCharacter* character, Color color) {
 
     // Draw the orientation line
     DrawLineV(character->position, orientationEnd, color);
+}
+
+void UpdateOrientation(KinematicCharacter* character) {
+    if (Vector2Length(character->velocity) > 0) {
+        // if (player.velocity.x != 0 || player.velocity.y != 0) {
+        character->orientation = atan2(character->velocity.y, character->velocity.x);
+    }
 }
