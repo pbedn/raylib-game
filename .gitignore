@@ -1,9 +1,15 @@
+# compilation & build
 build/
-build-release/
-tracy/
-.cache/
 *.exe
+*.o
+
+# sublime specific
 *.sublime-project
 *.sublime-workspace
+.cache/
+
+# raw assets
 assets/
+
+# for sublime clang
 compile_commands.json
