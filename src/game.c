@@ -6,14 +6,14 @@ void GameLogic(GameLogicParams *params) {
     //
     /* Input Handling: Update player movement based on input. */
     //
-    UpdatePlayer(params->player, params->deltaTime, params->screenWidth, params->screenHeight);
+    UpdatePlayer(params->player, params->deltaTime);
 
     //
     /* Update Game State: Update the state of the player, enemies, bullets, and power-ups. */
     //
     UpdateBullets(params->bulletManager, params->deltaTime);
     FireBullet(params->player, params->bulletManager, params->enemies, *(params->enemyCount), *(params->powerUpsCollected), 0.05f);
-    UpdateEnemies(params->enemies, params->enemyCount, params->player, params->deltaTime, params->screenWidth, params->screenHeight, *(params->enemySpawnVar));
+    UpdateEnemies(params->enemies, params->enemyCount, params->player, params->deltaTime, *(params->enemySpawnVar));
     
     //
     /* Collision Detection: Check for collisions between bullets and enemies, and between the player and power-ups. */
@@ -24,12 +24,12 @@ void GameLogic(GameLogicParams *params) {
 
     // Spawn power-up if conditions are met
     if (!params->powerUp->active && (*(params->enemiesShot) != 0) && (*(params->enemiesShot) % 10 == 0)) {
-        SpawnPowerUp(params->powerUp, params->screenWidth, params->screenHeight, params->player);
+        SpawnPowerUp(params->powerUp, params->player);
     }
 
     // Spawn new enemies based on the updated enemy spawn variable
     if (GetRandomValue(0, 100) < *(params->enemySpawnVar) && *(params->enemyCount) < MAX_ENEMIES) {
-        SpawnEnemy(&params->enemies[*(params->enemyCount)], params->screenWidth, params->screenHeight);
+        SpawnEnemy(&params->enemies[*(params->enemyCount)]);
         (*(params->enemyCount))++;
     }
 
@@ -75,46 +75,46 @@ void InitEnemies(int *enemyCount) {
     *enemyCount = 0; // Initialize enemy count
 }
 
-void UpdatePlayer(Player *player, float deltaTime, int screenWidth, int screenHeight) {
+void UpdatePlayer(Player *player, float deltaTime) {
     if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) player->position.y -= PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) player->position.y += PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) player->position.x -= PLAYER_SPEED * deltaTime;
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) player->position.x += PLAYER_SPEED * deltaTime;
 
     // Clamp player position to stay within screen boundaries
-    player->position.x = Clamp(player->position.x, player->radius, screenWidth - player->radius);
-    player->position.y = Clamp(player->position.y, player->radius, screenHeight - player->radius);
+    player->position.x = Clamp(player->position.x, player->radius, GetScreenWidth() - player->radius);
+    player->position.y = Clamp(player->position.y, player->radius, GetScreenHeight() - player->radius);
 
     // // Auto-fire bullets
     // FireBullet(&player, &bulletManager);
 }
 
-void SpawnEnemy(Enemy *enemy, int screenWidth, int screenHeight) {
+void SpawnEnemy(Enemy *enemy) {
     enemy->radius = 15.0f;
     enemy->direction = (Vector2){0, 0};
 
     int edge = GetRandomValue(0, 3); // 0: top, 1: bottom, 2: left, 3: right
     switch (edge) {
         case 0: // Top
-            enemy->position = (Vector2){GetRandomValue(0, screenWidth), 0};
+            enemy->position = (Vector2){GetRandomValue(0, GetScreenWidth()), 0};
             enemy->direction = (Vector2){0, 1}; // Move down
             break;
         case 1: // Bottom
-            enemy->position = (Vector2){GetRandomValue(0, screenWidth), screenHeight};
+            enemy->position = (Vector2){GetRandomValue(0, GetScreenWidth()), GetScreenHeight()};
             enemy->direction = (Vector2){0, -1}; // Move up
             break;
         case 2: // Left
-            enemy->position = (Vector2){0, GetRandomValue(0, screenHeight)};
+            enemy->position = (Vector2){0, GetRandomValue(0, GetScreenHeight())};
             enemy->direction = (Vector2){1, 0}; // Move right
             break;
         case 3: // Right
-            enemy->position = (Vector2){screenWidth, GetRandomValue(0, screenHeight)};
+            enemy->position = (Vector2){GetScreenWidth(), GetRandomValue(0, GetScreenHeight())};
             enemy->direction = (Vector2){-1, 0}; // Move left
             break;
     }
 }
 
-void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int screenWidth, int screenHeight, int enemySpawnVar) {
+void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int enemySpawnVar) {
     for (int i = 0; i < *enemyCount; i++) {
         // Calculate direction vector from enemy to player
         Vector2 direction = (Vector2){player->position.x - enemies[i].position.x, player->position.y - enemies[i].position.y};
@@ -127,8 +127,8 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
         enemies[i].position.y += direction.y * 100.0f * deltaTime; // Adjust speed as needed
 
         // Clamp enemy position to stay within screen boundaries
-        enemies[i].position.x = Clamp(enemies[i].position.x, enemies[i].radius, screenWidth - enemies[i].radius);
-        enemies[i].position.y = Clamp(enemies[i].position.y, enemies[i].radius, screenHeight - enemies[i].radius);
+        enemies[i].position.x = Clamp(enemies[i].position.x, enemies[i].radius, GetScreenWidth() - enemies[i].radius);
+        enemies[i].position.y = Clamp(enemies[i].position.y, enemies[i].radius, GetScreenHeight() - enemies[i].radius);
 
         // Check for collision with player
         if (CheckCollision(player, &enemies[i])) {
@@ -146,7 +146,7 @@ void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float delta
 
     // Spawn new enemies periodically
     if (GetRandomValue(0, 100) < enemySpawnVar && *enemyCount < MAX_ENEMIES) {
-        SpawnEnemy(&enemies[*enemyCount], screenWidth, screenHeight);
+        SpawnEnemy(&enemies[*enemyCount]);
         (*enemyCount)++;
     }
 }
@@ -275,11 +275,11 @@ void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], i
     }
 }
 
-void SpawnPowerUp(PowerUp *powerUp, float screenWidth, float screenHeight, Player *player) {
+void SpawnPowerUp(PowerUp *powerUp, Player *player) {
     const float MIN_DISTANCE_FROM_PLAYER = 100.0f; // Minimum distance from player
 
     do {
-        powerUp->position = (Vector2){GetRandomValue(50, screenWidth - 50), GetRandomValue(50, screenHeight - 50)};
+        powerUp->position = (Vector2){GetRandomValue(50, GetScreenWidth() - 50), GetRandomValue(50, GetScreenHeight() - 50)};
     } while (Vector2Distance(powerUp->position, player->position) < MIN_DISTANCE_FROM_PLAYER);
 
     powerUp->radius = 15.0f; // Set power-up radius
@@ -326,19 +326,19 @@ void DrawGame(GameLogicParams *params) {
     char waveText[32];
     sprintf(waveText, "Wave: %d", *(params->currentWave));
     int textWidth = MeasureText(waveText, 20);
-    DrawText(waveText, (params->screenWidth - textWidth) / 2, 10, 20, m_colors[COLOR_WHITE]);
+    DrawText(waveText, (GetScreenWidth() - textWidth) / 2, 10, 20, m_colors[COLOR_WHITE]);
 
     // Optionally, display the remaining time for the current wave (in seconds)
     char timerText[32];
     sprintf(timerText, "Time: %d", (int)(WAVE_DURATION - *(params->waveTimer)));
     int timerTextWidth = MeasureText(timerText, 20);
-    DrawText(timerText, (params->screenWidth - timerTextWidth) / 2, 40, 20, m_colors[COLOR_WHITE]);
+    DrawText(timerText, (GetScreenWidth() - timerTextWidth) / 2, 40, 20, m_colors[COLOR_WHITE]);
 
     // Draw enemies killed
     char enemiesText[32];
     sprintf(enemiesText, "Enemies Killed: %d", *(params->enemiesShot));
     int enemiesTextWidth = MeasureText(enemiesText, 20);
-    DrawText(enemiesText, (params->screenWidth - enemiesTextWidth) - 100, 10, 20, m_colors[COLOR_WHITE]);
+    DrawText(enemiesText, (GetScreenWidth() - enemiesTextWidth) - 100, 10, 20, m_colors[COLOR_WHITE]);
 
     if (params->powerUp->active) {
         DrawCircleV(params->powerUp->position, params->powerUp->radius, m_colors[COLOR_GREEN]); // Draw power-up

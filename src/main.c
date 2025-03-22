@@ -46,8 +46,6 @@ int main(void) {
         .enemiesShot = &enemiesShot,
         .enemySpawnVar = &enemySpawnVar,
         .deltaTime = 0.0f,
-        .screenWidth = screenWidth,
-        .screenHeight = screenHeight,
         .waveTimer = &waveTimer,
         .currentWave = &currentWave,
         .hitEnemyIndex = &hitEnemyIndex,
