@@ -13,45 +13,88 @@ int main(void) {
 
     SearchAndSetResourceDir("resources");
 
-    Player player;
-    InitPlayer(&player);
+    // Player player;
+    // InitPlayer(&player);
 
-    BulletManager bulletManager;
-    InitBulletManager(&bulletManager);
+    // BulletManager bulletManager;
+    // InitBulletManager(&bulletManager);
 
-    PowerUp powerUp; // Move power-up variable to main
-    powerUp.active = false; // Initialize power-up as inactive
+    // PowerUp powerUp; // Move power-up variable to main
+    // powerUp.active = false; // Initialize power-up as inactive
 
-    Enemy enemies[MAX_ENEMIES] = {0};
-    int enemyCount;
-    InitEnemies(&enemyCount);
-    int hitEnemyIndex = -1; // Initialize to -1 (no hit)
+    // Enemy enemies[MAX_ENEMIES] = {0};
+    // int enemyCount;
+    // InitEnemies(&enemyCount);
+    // int hitEnemyIndex = -1; // Initialize to -1 (no hit)
 
-    // Wave system variables
-    float waveTimer = 0.0f;
-    int currentWave = 1;
+    // // Wave system variables
+    // float waveTimer = 0.0f;
+    // int currentWave = 1;
 
     Scene currentScene = LOGO;
     float logoTimer = 0.0f;
 
-    Shader hitShader = LoadShader(0, "hit_shader.fs");
+    // Shader hitShader = LoadShader(0, "hit_shader.fs");
 
-    GameLogicParams gameLogicParams = {
-        .player = &player,
-        .bulletManager = &bulletManager,
-        .enemies = {*enemies}, // Initialize enemies array
-        .enemyCount = &enemyCount,
-        .powerUp = &powerUp,
-        .powerUpsCollected = &powerUpsCollected,
-        .enemiesShot = &enemiesShot,
-        .enemySpawnVar = &enemySpawnVar,
-        .deltaTime = 0.0f,
-        .waveTimer = &waveTimer,
-        .currentWave = &currentWave,
-        .hitEnemyIndex = &hitEnemyIndex,
-        .hitShader = hitShader,
-        .isGamePaused = false
-    };
+    // GameLogicParams gameLogicParams = {
+    //     .player = &player,
+    //     .bulletManager = &bulletManager,
+    //     .enemies = {*enemies}, // Initialize enemies array
+    //     .enemyCount = &enemyCount,
+    //     .powerUp = &powerUp,
+    //     .powerUpsCollected = &powerUpsCollected,
+    //     .enemiesShot = &enemiesShot,
+    //     .enemySpawnVar = &enemySpawnVar,
+    //     .deltaTime = 0.0f,
+    //     .waveTimer = &waveTimer,
+    //     .currentWave = &currentWave,
+    //     .hitEnemyIndex = &hitEnemyIndex,
+    //     .hitShader = hitShader,
+    //     .isGamePaused = false
+    // };
+    GameLogicParams gameLogicParams;
+    InitGameParams(&gameLogicParams);
+
+    // Player player;
+    // player.position = (Vector2){400, 300}; // Center of the screen
+    // player.radius = 20.0f;
+    // player.health = 10;
+
+    // BulletManager bulletManager;
+    // bulletManager.bulletCount = 0; // Initialize bullet count
+    // bulletManager.lastShotTime = 0.0f; // Reset shot timer
+    // bulletManager.bulletCooldown = 0.8f; // Set bullet cooldown
+
+    // PowerUp powerUp;
+    // powerUp.active = false;
+
+    // // Enemy enemies[MAX_ENEMIES];
+    // // Initialize enemies array
+    // // for (int i = 0; i < MAX_ENEMIES; i++) {
+    // //     params->enemies[i] = (Enemy){0}; // Initialize each Enemy to zero
+    // // }
+    // int enemyCount = 0;
+    // int hitEnemyIndex = -1; // Initialize to -1 (no hit)
+
+    // // Wave system variables
+    // float waveTimer = 0.0f;
+    // int currentWave = 1;
+
+    // Shader hitShader = LoadShader(0, "hit_shader.fs");    
+
+    // gameLogicParams.player = &player;
+    // gameLogicParams.bulletManager = &bulletManager;
+    // gameLogicParams.enemyCount = &enemyCount;
+    // gameLogicParams.powerUp = &powerUp;
+    // gameLogicParams.powerUpsCollected = &powerUpsCollected;
+    // gameLogicParams.enemiesShot = &enemiesShot;
+    // gameLogicParams.enemySpawnVar = &enemySpawnVar;
+    // gameLogicParams.deltaTime = 0.0f;
+    // gameLogicParams.waveTimer = &waveTimer;
+    // gameLogicParams.currentWave = &currentWave;
+    // gameLogicParams.hitEnemyIndex = &hitEnemyIndex;
+    // gameLogicParams.hitShader = hitShader;
+    // gameLogicParams.isGamePaused = false;
 
     SetTargetFPS(60); // Set the game to run at 60 frames-per-second
 

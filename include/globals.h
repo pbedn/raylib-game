@@ -4,7 +4,7 @@
 #include "raylib.h" // Include raylib if needed
 
 #define PLAYER_SPEED 200.0f
-#define MAX_ENEMIES 1000
+#define MAX_ENEMIES 100
 #define INITIAL_ENEMY_SPAWN_VAR 2 // Initial spawn chance for enemies
 #define MAX_BULLETS 100
 #define SHOOTING_RANGE 500.0f // Define the shooting range

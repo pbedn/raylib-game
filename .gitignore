@@ -13,3 +13,9 @@ assets/
 
 # for sublime clang
 compile_commands.json
+
+# vscode
+.vs
+
+# other
+raw-testing/

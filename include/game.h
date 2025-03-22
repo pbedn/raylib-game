@@ -11,19 +11,19 @@
 #include "resource_dir.h"
 #include "globals.h"
 
-typedef struct Player {
+typedef struct {
     Vector2 position;
     float radius;
     int health;
 } Player;
 
-typedef struct Enemy {
+typedef struct {
     Vector2 position;
     float radius;
     Vector2 direction;
 } Enemy;
 
-typedef struct Bullet {
+typedef struct {
     Vector2 position;
     Vector2 direction;
     float speed;
@@ -31,18 +31,25 @@ typedef struct Bullet {
     bool active; // To check if the bullet is active
 } Bullet;
 
-typedef struct BulletManager {
+typedef struct {
     Bullet bullets[MAX_BULLETS]; // Array to hold bullets
     int bulletCount; // Current number of active bullets
     float lastShotTime; // Timer for shooting
     float bulletCooldown; // Time between shots
 } BulletManager;
 
-typedef struct PowerUp {
+typedef struct {
     Vector2 position;
     float radius;
     bool active;
 } PowerUp;
+
+typedef struct {
+    Vector2 position;
+    Vector2 speed;
+    float life;
+    bool active;
+} Particle;
 
 typedef struct {
     Player *player;
@@ -70,13 +77,14 @@ typedef enum {
 
 
 const char* SceneToString(Scene scene);
+
+void InitGameParams(GameLogicParams *params);
 void GameLogic(GameLogicParams *params);
 void InitPlayer(Player *player);
 void InitBulletManager(BulletManager *bulletManager);
-void InitEnemies(int *enemyCount);
-void SpawnEnemy(Enemy *enemy);
-void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int enemySpawnVar);
-void DrawEnemies(Enemy enemies[], int enemyCount, Shader hitShader, int hitEnemyIndex);
+void SpawnEnemy(GameLogicParams *params);
+void UpdateEnemies(GameLogicParams *params);
+void DrawEnemies(GameLogicParams *params);
 bool CheckCollision(Player *player, Enemy *enemy);
 void UpdatePlayer(Player *player, float deltaTime);
 void UpdateBullets(BulletManager *bulletManager, float deltaTime);

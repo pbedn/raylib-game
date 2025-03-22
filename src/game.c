@@ -2,6 +2,53 @@
 #include "globals.h"
 
 
+void InitGameParams(GameLogicParams *params) {
+    static Player player;
+    player.position = (Vector2){400, 300}; // Center of the screen
+    player.radius = 20.0f;
+    player.health = 10;
+
+    static BulletManager bulletManager;
+    bulletManager.bulletCount = 0; // Initialize bullet count
+    bulletManager.lastShotTime = 0.0f; // Reset shot timer
+    bulletManager.bulletCooldown = 0.8f; // Set bullet cooldown
+
+    static PowerUp powerUp;
+    powerUp.active = false;
+
+    // Initialize enemies array
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        params->enemies[i] = (Enemy){0}; // Initialize each Enemy to zero
+    }
+    static int enemyCount = 0;
+    static int hitEnemyIndex = -1; // Initialize to -1 (no hit)
+
+    // Wave system variables
+    static float waveTimer = 0.0f;
+    static int currentWave = 1;
+
+    Shader hitShader = LoadShader(0, "hit_shader.fs");    
+
+    params->player = &player;
+    params->bulletManager = &bulletManager;
+    // params->enemies;
+    // for (int i = 0; i < MAX_ENEMIES; i++) {
+    //     params->enemies[i] = (Enemy){0}; // Initialize each Enemy to zero
+    // }
+    params->enemyCount = &enemyCount;
+    params->powerUp = &powerUp;
+    params->powerUpsCollected = &powerUpsCollected;
+    params->enemiesShot = &enemiesShot;
+    params->enemySpawnVar = &enemySpawnVar;
+    params->deltaTime = 0.0f;
+    params->waveTimer = &waveTimer;
+    params->currentWave = &currentWave;
+    params->hitEnemyIndex = &hitEnemyIndex;
+    params->hitShader = hitShader;
+    params->isGamePaused = false;
+    TraceLog(LOG_DEBUG, "Init Game Params");
+}
+
 void GameLogic(GameLogicParams *params) {
     //
     /* Input Handling: Update player movement based on input. */
@@ -13,7 +60,7 @@ void GameLogic(GameLogicParams *params) {
     //
     UpdateBullets(params->bulletManager, params->deltaTime);
     FireBullet(params->player, params->bulletManager, params->enemies, *(params->enemyCount), *(params->powerUpsCollected), 0.05f);
-    UpdateEnemies(params->enemies, params->enemyCount, params->player, params->deltaTime, *(params->enemySpawnVar));
+    UpdateEnemies(params);
     
     //
     /* Collision Detection: Check for collisions between bullets and enemies, and between the player and power-ups. */
@@ -29,8 +76,7 @@ void GameLogic(GameLogicParams *params) {
 
     // Spawn new enemies based on the updated enemy spawn variable
     if (GetRandomValue(0, 100) < *(params->enemySpawnVar) && *(params->enemyCount) < MAX_ENEMIES) {
-        SpawnEnemy(&params->enemies[*(params->enemyCount)]);
-        (*(params->enemyCount))++;
+        SpawnEnemy(params);
     }
 
     // Wave system: update timer and end wave if needed
@@ -48,7 +94,7 @@ void GameLogic(GameLogicParams *params) {
         InitPlayer(params->player);
         InitBulletManager(params->bulletManager);
         *(params->enemyCount) = 0;
-        InitEnemies(params->enemyCount);
+        *params->enemyCount = 0;
         *(params->powerUpsCollected) = 0;
         *(params->enemiesShot) = 0;
         params->powerUp->active = false;
@@ -71,9 +117,6 @@ void InitBulletManager(BulletManager *bulletManager) {
     bulletManager->bulletCooldown = 0.8f; // Set bullet cooldown
 }
 
-void InitEnemies(int *enemyCount) {
-    *enemyCount = 0; // Initialize enemy count
-}
 
 void UpdatePlayer(Player *player, float deltaTime) {
     if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) player->position.y -= PLAYER_SPEED * deltaTime;
@@ -89,78 +132,79 @@ void UpdatePlayer(Player *player, float deltaTime) {
     // FireBullet(&player, &bulletManager);
 }
 
-void SpawnEnemy(Enemy *enemy) {
-    enemy->radius = 15.0f;
-    enemy->direction = (Vector2){0, 0};
+void SpawnEnemy(GameLogicParams *params) {
+    if (*(params->enemyCount) >= MAX_ENEMIES) {
+        TraceLog(LOG_DEBUG, "Max enemies reached, cannot spawn more.");
+        return; // Ensure we don't exceed the max enemies
+    }
+    Enemy newEnemy;
+    newEnemy.radius = 15.0f;
+    newEnemy.direction = (Vector2){0, 0};
 
     int edge = GetRandomValue(0, 3); // 0: top, 1: bottom, 2: left, 3: right
     switch (edge) {
         case 0: // Top
-            enemy->position = (Vector2){GetRandomValue(0, GetScreenWidth()), 0};
-            enemy->direction = (Vector2){0, 1}; // Move down
+            newEnemy.position = (Vector2){GetRandomValue(0, GetScreenWidth()), 0};
+            newEnemy.direction = (Vector2){0, 1}; // Move down
             break;
         case 1: // Bottom
-            enemy->position = (Vector2){GetRandomValue(0, GetScreenWidth()), GetScreenHeight()};
-            enemy->direction = (Vector2){0, -1}; // Move up
+            newEnemy.position = (Vector2){GetRandomValue(0, GetScreenWidth()), GetScreenHeight()};
+            newEnemy.direction = (Vector2){0, -1}; // Move up
             break;
         case 2: // Left
-            enemy->position = (Vector2){0, GetRandomValue(0, GetScreenHeight())};
-            enemy->direction = (Vector2){1, 0}; // Move right
+            newEnemy.position = (Vector2){0, GetRandomValue(0, GetScreenHeight())};
+            newEnemy.direction = (Vector2){1, 0}; // Move right
             break;
         case 3: // Right
-            enemy->position = (Vector2){GetScreenWidth(), GetRandomValue(0, GetScreenHeight())};
-            enemy->direction = (Vector2){-1, 0}; // Move left
+            newEnemy.position = (Vector2){GetScreenWidth(), GetRandomValue(0, GetScreenHeight())};
+            newEnemy.direction = (Vector2){-1, 0}; // Move left
             break;
     }
+    params->enemies[*params->enemyCount] = newEnemy;
+    (*(params->enemyCount))++;
+
+    TraceLog(LOG_DEBUG, "Spawned enemy at position (%f, %f) with direction (%f, %f). Total enemies: %d",
+        newEnemy.position.x, newEnemy.position.y, newEnemy.direction.x, newEnemy.direction.y, *(params->enemyCount));
 }
 
-void UpdateEnemies(Enemy enemies[], int *enemyCount, Player *player, float deltaTime, int enemySpawnVar) {
-    for (int i = 0; i < *enemyCount; i++) {
+void UpdateEnemies(GameLogicParams *params) {
+    TraceLog(LOG_DEBUG, "Updating enemies. Current enemy count: %d", *(params->enemyCount));
+
+    for (int i = 0; i < *(params->enemyCount); i++) {
         // Calculate direction vector from enemy to player
-        Vector2 direction = (Vector2){player->position.x - enemies[i].position.x, player->position.y - enemies[i].position.y};
+        Vector2 direction = (Vector2){params->player->position.x - params->enemies[i].position.x, params->player->position.y - params->enemies[i].position.y};
 
         // Normalize the direction vector
         direction = Vector2Normalize(direction);
 
         // Move the enemy towards the player
-        enemies[i].position.x += direction.x * 100.0f * deltaTime; // Adjust speed as needed
-        enemies[i].position.y += direction.y * 100.0f * deltaTime; // Adjust speed as needed
+        params->enemies[i].position.x += direction.x * 100.0f * params->deltaTime; // Adjust speed as needed
+        params->enemies[i].position.y += direction.y * 100.0f * params->deltaTime; // Adjust speed as needed
 
         // Clamp enemy position to stay within screen boundaries
-        enemies[i].position.x = Clamp(enemies[i].position.x, enemies[i].radius, GetScreenWidth() - enemies[i].radius);
-        enemies[i].position.y = Clamp(enemies[i].position.y, enemies[i].radius, GetScreenHeight() - enemies[i].radius);
+        params->enemies[i].position.x = Clamp(params->enemies[i].position.x, params->enemies[i].radius, GetScreenWidth() - params->enemies[i].radius);
+        params->enemies[i].position.y = Clamp(params->enemies[i].position.y, params->enemies[i].radius, GetScreenHeight() - params->enemies[i].radius);
 
         // Check for collision with player
-        if (CheckCollision(player, &enemies[i])) {
+        if (CheckCollision(params->player, &params->enemies[i])) {
             // Decrease player's health
-            player->health--;
+            params->player->health--;
             
             // Remove enemy by shifting the rest of the array
-            for (int j = i; j < *enemyCount - 1; j++) {
-                enemies[j] = enemies[j + 1];
+            for (int j = i; j < *(params->enemyCount) - 1; j++) {
+                params->enemies[j] = params->enemies[j + 1];
             }
-            (*enemyCount)--;
+            (*(params->enemyCount))--;
             i--; // Adjust index after removal
         }
     }
 
     // Spawn new enemies periodically
-    if (GetRandomValue(0, 100) < enemySpawnVar && *enemyCount < MAX_ENEMIES) {
-        SpawnEnemy(&enemies[*enemyCount]);
-        (*enemyCount)++;
+    if (GetRandomValue(0, 100) < *(params->enemySpawnVar) && *(params->enemyCount) < MAX_ENEMIES) {
+        SpawnEnemy(params);
     }
-}
 
-void DrawEnemies(Enemy enemies[], int enemyCount, Shader hitShader, int hitEnemyIndex) {
-    for (int i = 0; i < enemyCount; i++) {
-        if (i == hitEnemyIndex) {
-            BeginShaderMode(hitShader);
-            DrawCircleV(enemies[i].position, enemies[i].radius, m_colors[COLOR_ORANGE_RED]);
-            EndShaderMode();
-        } else {
-            DrawCircleV(enemies[i].position, enemies[i].radius, m_colors[COLOR_ORANGE_RED]);
-        }
-    }
+    TraceLog(LOG_DEBUG, "Finished updating enemies. Current enemy count: %d", *(params->enemyCount));
 }
 
 bool CheckCollision(Player *player, Enemy *enemy) {
@@ -223,14 +267,6 @@ void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], i
     }
 }
 
-void DrawBullets(BulletManager *bulletManager) {
-    for (int i = 0; i < bulletManager->bulletCount; i++) {
-        Bullet *bullet = &bulletManager->bullets[i];
-        if (bullet->active) {
-            DrawCircleV(bullet->position, bullet->radius, m_colors[COLOR_LIGHT_YELLOW]); // Draw bullet
-        }
-    }
-}
 
 Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player) {
     Enemy *closestEnemy = NULL;
@@ -313,7 +349,7 @@ void DrawGame(GameLogicParams *params) {
     ClearBackground(m_colors[COLOR_DARK_GRAY]);
 
     DrawCircleV(params->player->position, params->player->radius, m_colors[COLOR_BLUE]);
-    DrawEnemies(params->enemies, *(params->enemyCount), params->hitShader, *(params->hitEnemyIndex));
+    DrawEnemies(params);
     DrawBullets(params->bulletManager);
     DrawText("Use WASD to move", 10, 10, 20, m_colors[COLOR_LIGHTER_GRAY]);
 
@@ -340,8 +376,35 @@ void DrawGame(GameLogicParams *params) {
     int enemiesTextWidth = MeasureText(enemiesText, 20);
     DrawText(enemiesText, (GetScreenWidth() - enemiesTextWidth) - 100, 10, 20, m_colors[COLOR_WHITE]);
 
+    // Draw current enemy count
+    char enemyCountText[32];
+    sprintf(enemyCountText, "[debug] Enemies: %d", *(params->enemyCount));
+    DrawText(enemyCountText, 10, 70, 16, m_colors[COLOR_WHITE]);
+    
     if (params->powerUp->active) {
         DrawCircleV(params->powerUp->position, params->powerUp->radius, m_colors[COLOR_GREEN]); // Draw power-up
+    }
+}
+
+void DrawBullets(BulletManager *bulletManager) {
+    for (int i = 0; i < bulletManager->bulletCount; i++) {
+        Bullet *bullet = &bulletManager->bullets[i];
+        if (bullet->active) {
+            DrawCircleV(bullet->position, bullet->radius, m_colors[COLOR_LIGHT_YELLOW]); // Draw bullet
+        }
+    }
+}
+
+void DrawEnemies(GameLogicParams *params) {
+    for (int i = 0; i < *params->enemyCount; i++) {
+        Enemy enemy = params->enemies[i];
+        if (i == *params->hitEnemyIndex) {
+            BeginShaderMode(params->hitShader);
+        }
+        DrawCircleV(enemy.position, enemy.radius, m_colors[COLOR_ORANGE_RED]);
+        if (i == *params->hitEnemyIndex) {
+            EndShaderMode();
+        }
     }
 }
 
@@ -355,7 +418,7 @@ void ExitGameplay(GameLogicParams *gameParams) {
     // Reset game parameters if needed
     *(gameParams->hitEnemyIndex) = -1;
     *(gameParams->enemyCount) = 0;
-    InitEnemies(gameParams->enemyCount);
+    *(gameParams->enemyCount) = 0;
     *(gameParams->powerUpsCollected) = 0;
     *(gameParams->enemiesShot) = 0;
     gameParams->powerUp->active = false;
