@@ -1,17 +1,17 @@
 #include "game.h"
 #include "globals.h"
+#include <stdarg.h>
+#include <stdio.h>
 
 
 void InitGameParams(GameLogicParams *params) {
     static Player player;
-    player.position = (Vector2){400, 300}; // Center of the screen
-    player.radius = 20.0f;
-    player.health = 10;
+    InitPlayer(&player);
+    params->player = &player;
 
     static BulletManager bulletManager;
-    bulletManager.bulletCount = 0; // Initialize bullet count
-    bulletManager.lastShotTime = 0.0f; // Reset shot timer
-    bulletManager.bulletCooldown = 0.8f; // Set bullet cooldown
+    InitBulletManager(&bulletManager);
+    params->bulletManager = &bulletManager;
 
     static PowerUp powerUp;
     powerUp.active = false;
@@ -27,8 +27,6 @@ void InitGameParams(GameLogicParams *params) {
     static float waveTimer = 0.0f;
     static int currentWave = 1;
 
-    params->player = &player;
-    params->bulletManager = &bulletManager;
     params->enemyCount = &enemyCount;
     params->powerUp = &powerUp;
     params->powerUpsCollected = &powerUpsCollected;
@@ -39,7 +37,6 @@ void InitGameParams(GameLogicParams *params) {
     params->currentWave = &currentWave;
     params->hitEnemyIndex = &hitEnemyIndex;
     params->isGamePaused = false;
-    TraceLog(LOG_DEBUG, "Init Game Params");
 }
 
 void GameLogic(GameLogicParams *params) {
@@ -60,7 +57,7 @@ void GameLogic(GameLogicParams *params) {
     //
     // Collision Detection
     CheckBulletEnemyCollisions(params->bulletManager, params->enemies, params->enemyCount, params->enemiesShot, params->hitEnemyIndex);
-    CheckPowerUpCollection(params->player, params->powerUp, params->powerUpsCollected, params->enemySpawnVar);
+    CheckPowerUpCollection(params->player, params->powerUp, params->powerUpsCollected);
 
     // Spawn power-up if conditions are met
     if (!params->powerUp->active && (*(params->enemiesShot) != 0) && (*(params->enemiesShot) % 10 == 0)) {
@@ -80,6 +77,7 @@ void GameLogic(GameLogicParams *params) {
         params->powerUp->active = false;
         (*(params->currentWave))++;
         *(params->waveTimer) = 0.0f;
+        (*(params->enemySpawnVar))++; // Increase enemy spawn variable
     }
 
     // Check for Player death and restart game state if health <= 0
@@ -87,7 +85,6 @@ void GameLogic(GameLogicParams *params) {
         InitPlayer(params->player);
         InitBulletManager(params->bulletManager);
         *(params->enemyCount) = 0;
-        *params->enemyCount = 0;
         *(params->powerUpsCollected) = 0;
         *(params->enemiesShot) = 0;
         params->powerUp->active = false;
@@ -119,9 +116,6 @@ void UpdatePlayer(Player *player, float deltaTime) {
     // Clamp player position to stay within screen boundaries
     player->position.x = Clamp(player->position.x, player->radius, GetScreenWidth() - player->radius);
     player->position.y = Clamp(player->position.y, player->radius, GetScreenHeight() - player->radius);
-
-    // // Auto-fire bullets
-    // FireBullet(&player, &bulletManager);
 }
 
 void SpawnEnemy(GameLogicParams *params) {
@@ -155,12 +149,12 @@ void SpawnEnemy(GameLogicParams *params) {
     params->enemies[*params->enemyCount] = newEnemy;
     (*(params->enemyCount))++;
 
-    TraceLog(LOG_DEBUG, "Spawned enemy at position (%f, %f) with direction (%f, %f). Total enemies: %d",
-        newEnemy.position.x, newEnemy.position.y, newEnemy.direction.x, newEnemy.direction.y, *(params->enemyCount));
+    // TraceLog(LOG_DEBUG, "Spawned enemy at position (%f, %f) with direction (%f, %f). Total enemies: %d",
+        // newEnemy.position.x, newEnemy.position.y, newEnemy.direction.x, newEnemy.direction.y, *(params->enemyCount));
 }
 
 void UpdateEnemies(GameLogicParams *params) {
-    TraceLog(LOG_DEBUG, "Updating enemies. Current enemy count: %d", *(params->enemyCount));
+    // TraceLog(LOG_DEBUG, "Updating enemies. Current enemy count: %d", *(params->enemyCount));
 
     for (int i = 0; i < *(params->enemyCount); i++) {
         // Calculate direction vector from enemy to player
@@ -192,11 +186,11 @@ void UpdateEnemies(GameLogicParams *params) {
     }
 
     // Spawn new enemies periodically
-    if (GetRandomValue(0, 100) < *(params->enemySpawnVar) && *(params->enemyCount) < MAX_ENEMIES) {
+    if (GetRandomValue(0, 500) < *(params->enemySpawnVar) && *(params->enemyCount) < MAX_ENEMIES) {
         SpawnEnemy(params);
     }
 
-    TraceLog(LOG_DEBUG, "Finished updating enemies. Current enemy count: %d", *(params->enemyCount));
+    // TraceLog(LOG_DEBUG, "Finished updating enemies. Current enemy count: %d", *(params->enemyCount));
 }
 
 bool CheckCollision(Player *player, Enemy *enemy) {
@@ -314,11 +308,10 @@ void SpawnPowerUp(PowerUp *powerUp, Player *player) {
     powerUp->active = true; // Activate power-up
 }
 
-void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected, int *enemySpawnVar) {
+void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected) {
     if (powerUp->active && CheckCollisionCircles(player->position, player->radius, powerUp->position, powerUp->radius)) {
         (*powerUpsCollected)++; // Increase power-ups collected
         powerUp->active = false; // Deactivate power-up
-        *enemySpawnVar += 1; // Increase enemy spawn variable
     }
 }
 
@@ -368,14 +361,35 @@ void DrawGame(GameLogicParams *params) {
     int enemiesTextWidth = MeasureText(enemiesText, 20);
     DrawText(enemiesText, (GetScreenWidth() - enemiesTextWidth) - 100, 10, 20, m_colors[COLOR_WHITE]);
 
-    // Draw current enemy count
-    char enemyCountText[32];
-    sprintf(enemyCountText, "[debug] Enemies: %d", *(params->enemyCount));
-    DrawText(enemyCountText, 10, 70, 16, m_colors[COLOR_WHITE]);
-    
+    DrawDebugText(2,
+        *(params->enemyCount), "Enemy Count",
+        *(params->powerUpsCollected), "PowerUps Collected"
+    );
+
+    // Draw powerUp
     if (params->powerUp->active) {
         DrawCircleV(params->powerUp->position, params->powerUp->radius, m_colors[COLOR_GREEN]); // Draw power-up
     }
+}
+
+void DrawDebugText(int count, ...) {
+    va_list args;
+    va_start(args, count);
+
+    int x = 10;
+    int y = 70; //starting Y position
+    int fontSize = 16;
+
+    DrawText("[debug]", x, y, fontSize, m_colors[COLOR_WHITE]);
+    for (int i = 0; i < count; i++) {
+        y += 20;
+        int param = va_arg(args, int);
+        const char *string = va_arg(args, const char*);
+        char text[64];
+        sprintf(text, "%s: %d", string, param); // format the text
+        DrawText(text, x, y, fontSize, m_colors[COLOR_WHITE]);
+    }
+    va_end(args);
 }
 
 void DrawBullets(BulletManager *bulletManager) {

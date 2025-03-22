@@ -83,18 +83,23 @@ void InitPlayer(Player *player);
 void InitBulletManager(BulletManager *bulletManager);
 void SpawnEnemy(GameLogicParams *params);
 void UpdateEnemies(GameLogicParams *params);
-void DrawEnemies(GameLogicParams *params);
+
 bool CheckCollision(Player *player, Enemy *enemy);
 void UpdatePlayer(Player *player, float deltaTime);
 void UpdateBullets(BulletManager *bulletManager, float deltaTime);
-void DrawBullets(BulletManager *bulletManager);
+
 void FireBullet(Player *player, BulletManager *bulletManager, Enemy enemies[], int enemyCount, int powerUpsCollected, float fireRateIncrease);
 Enemy* FindClosestEnemy(Enemy enemies[], int enemyCount, Player *player);
 void CheckBulletEnemyCollisions(BulletManager *bulletManager, Enemy enemies[], int *enemyCount, int *enemiesShot, int *hitEnemyIndex);
 void SpawnPowerUp(PowerUp *powerUp, Player *player);
-void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected, int *enemySpawnVar);
+void CheckPowerUpCollection(Player *player, PowerUp *powerUp, int *powerUpsCollected);
+
+void ExitGameplay(GameLogicParams *gameParams);
+
+void DrawEnemies(GameLogicParams *params);
+void DrawBullets(BulletManager *bulletManager);
 void DrawLogo();
 void DrawMainMenu();
 void DrawGame(GameLogicParams *params);
 void DrawGameOver();
-void ExitGameplay(GameLogicParams *gameParams);
+void DrawDebugText(int count, ...);
