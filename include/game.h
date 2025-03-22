@@ -64,7 +64,6 @@ typedef struct {
     float *waveTimer;
     int *currentWave;
     int *hitEnemyIndex;
-    Shader hitShader;
     bool isGamePaused;
 } GameLogicParams;
 

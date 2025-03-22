@@ -27,14 +27,8 @@ void InitGameParams(GameLogicParams *params) {
     static float waveTimer = 0.0f;
     static int currentWave = 1;
 
-    Shader hitShader = LoadShader(0, "hit_shader.fs");    
-
     params->player = &player;
     params->bulletManager = &bulletManager;
-    // params->enemies;
-    // for (int i = 0; i < MAX_ENEMIES; i++) {
-    //     params->enemies[i] = (Enemy){0}; // Initialize each Enemy to zero
-    // }
     params->enemyCount = &enemyCount;
     params->powerUp = &powerUp;
     params->powerUpsCollected = &powerUpsCollected;
@@ -44,7 +38,6 @@ void InitGameParams(GameLogicParams *params) {
     params->waveTimer = &waveTimer;
     params->currentWave = &currentWave;
     params->hitEnemyIndex = &hitEnemyIndex;
-    params->hitShader = hitShader;
     params->isGamePaused = false;
     TraceLog(LOG_DEBUG, "Init Game Params");
 }
@@ -101,7 +94,6 @@ void GameLogic(GameLogicParams *params) {
         *(params->enemySpawnVar) = INITIAL_ENEMY_SPAWN_VAR;
         *(params->currentWave) = 1;
         *(params->waveTimer) = 0.0f;
-        params->hitShader = LoadShader(0, "hit_shader.fs");
     }
 }
 
@@ -398,20 +390,11 @@ void DrawBullets(BulletManager *bulletManager) {
 void DrawEnemies(GameLogicParams *params) {
     for (int i = 0; i < *params->enemyCount; i++) {
         Enemy enemy = params->enemies[i];
-        if (i == *params->hitEnemyIndex) {
-            BeginShaderMode(params->hitShader);
-        }
         DrawCircleV(enemy.position, enemy.radius, m_colors[COLOR_ORANGE_RED]);
-        if (i == *params->hitEnemyIndex) {
-            EndShaderMode();
-        }
     }
 }
 
 void ExitGameplay(GameLogicParams *gameParams) {
-    // Unload the shader
-    UnloadShader(gameParams->hitShader);
-
     // Free any dynamically allocated resources if necessary
     // For example, if you have dynamically allocated memory for enemies or bullets, free them here
 
